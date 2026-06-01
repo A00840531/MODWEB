@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib as plt  # <--- Asegúrate de que esta línea esté idéntica
+import matplotlib.pyplot as plt  # <--- Asegúrate de que esta línea esté idéntica
 
 st.title("Simple Data Dashboard")
 
