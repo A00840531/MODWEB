@@ -19,10 +19,10 @@ with st.container():
 
     x = 10
     y = np.random.normal(0, 1, size=1000)
-    fig, ax = plt.subplots()
-    ax.hist(y, bins=20)  # Esto dibuja un histograma en los ejes
-    st.pyplot(fig)
-    st.write(fig)
+    #fig, ax = plt.subplots()
+    #ax.hist(y, bins=20)  # Esto dibuja un histograma en los ejes
+    #st.pyplot(fig)
+    #st.write(fig)
 
 # Formateando máximos de una tabla
 
