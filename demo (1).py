@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt  # <--- Asegúrate de que esta línea esté idéntica
 
 st.title("Simple Data Dashboard")
 
@@ -19,8 +20,8 @@ with st.container():
     x = 10
     y = np.random.normal(0, 1, size=1000)
     fig, ax = plt.subplots()
-    ax.hist(y, bins=20)
-
+    ax.hist(y, bins=20)  # Esto dibuja un histograma en los ejes
+    st.pyplot(fig)
     st.write(fig)
 
 # Formateando máximos de una tabla
