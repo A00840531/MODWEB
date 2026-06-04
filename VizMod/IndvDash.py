@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -30,8 +31,8 @@ st.markdown("""
 # 2. HIGH-PERFORMANCE DATA LOADING & TRANSFORMATION
 # ==============================================================================
 @st.cache_data
-def load_and_group_dashboard_engine():
-    df = pd.read_csv("cleaned_covid_dashboard_data.csv")
+def load_and_group_dashboard_engine(csv_target_path):
+    df = pd.read_csv(csv_target_path)
     df['Date'] = pd.to_datetime(df['Year'].astype(str) + '-' + df['Month'].astype(str) + '-01')
     
     # Standardize and translate acronyms from the CSV layout
@@ -45,10 +46,23 @@ def load_and_group_dashboard_engine():
     df['Income_Tier'] = income_clean.map(income_mapping).fillna("Middle Income")
     return df
 
+# 🚀 SMART ENVIRONMENT PATH DETECTOR
+# This automatically calculates the path to your folder: C:\\...\\MODWEB\\VizMod\\
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+RESOLVED_CSV_PATH = os.path.join(BASE_DIR, "cleaned_covid_dashboard_data.csv")
+
+if os.path.exists(RESOLVED_CSV_PATH):
+    target_path = RESOLVED_CSV_PATH
+elif os.path.exists("cleaned_covid_dashboard_data.csv"):
+    target_path = "cleaned_covid_dashboard_data.csv"
+else:
+    # Double-fallback matching your exact local drive hierarchy
+    target_path = r"C:\Users\Josué Obed\OneDrive - Instituto Tecnologico y de Estudios Superiores de Monterrey\TEC\6TH SEMESTER\MODWEB\VizMod\cleaned_covid_dashboard_data.csv"
+
 try:
-    df = load_and_group_dashboard_engine()
-except FileNotFoundError:
-    st.error("🚨 Error: 'cleaned_covid_dashboard_data.csv' not found. Please check your directory.")
+    df = load_and_group_dashboard_engine(target_path)
+except Exception as e:
+    st.error(f"🚨 Path Error: Unable to read file engine coordinates. Exception Details: {e}")
     st.stop()
 
 # ==============================================================================
