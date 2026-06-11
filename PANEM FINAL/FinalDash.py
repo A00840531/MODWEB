@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import os
 import html
+import json
 from pathlib import Path
 
 # =====================================================
@@ -208,6 +209,35 @@ st.markdown(
     .block-container {
         padding-top: 2rem;
     }
+
+    /* Conversational Chat Component Styles */
+    .chat-bubble-user {
+        background-color: #e6d3b3;
+        color: #2f2a26;
+        padding: 12px 16px;
+        border-radius: 15px 15px 0px 15px;
+        margin-bottom: 10px;
+        max-width: 75%;
+        margin-left: auto;
+        border: 1px solid #c7a982;
+    }
+    .chat-bubble-bot {
+        background-color: #fff7e8;
+        color: #2f2a26;
+        padding: 12px 16px;
+        border-radius: 15px 15px 15px 0px;
+        margin-bottom: 10px;
+        max-width: 75%;
+        margin-right: auto;
+        border: 1px solid #d8c3a5;
+    }
+    .live-navigation-box {
+        background-color: #fff7e8;
+        border: 1px dashed #8b6f47;
+        border-radius: 8px;
+        padding: 14px;
+        margin-top: 5px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -408,6 +438,58 @@ def render_kpi_card(container, label, value):
 
 
 # =====================================================
+# LOCAL QUERY PARSER (Replaces OpenAI Copilot Engine)
+# =====================================================
+def get_local_copilot_response(query):
+    """
+    Parses incoming manager queries locally and returns a structured response map 
+    and dashboard page navigation alignment.
+    """
+    q = query.lower().strip()
+    
+    # 1. Branch Forecast / Target questions
+    if "forecast" in q or "target" in q or "predict" in q or "allocation" in q or "demand" in q:
+        return {
+            "response": "To view your future operational constraints and production targets, use the <b>Branch Forecast</b> tab. Here you can filter by specific branch and prediction dates to optimize baking workflows, review calculated revenue adjustments, and react to high/low demand alerts.",
+            "suggestedPage": "Branch Forecast"
+        }
+    
+    # 2. Historical patterns or past sales questions
+    elif "history" in q or "past" in q or "historical" in q or "pattern" in q or "sold" in q or "sales" in q:
+        return {
+            "response": "To map past customer behaviors and historical transaction trends across the network, please use the <b>Historical Sales</b> tab. You can multi-filter across multiple locations, explore high-volume categories, or view volume variance segmented by days of the week.",
+            "suggestedPage": "Historical Sales"
+        }
+        
+    # 3. Model validation, accuracy, trust, metrics or error terms
+    elif "trust" in q or "mape" in q or "mae" in q or "error" in q or "accuracy" in q or "reliable" in q or "confidence" in q:
+        return {
+            "response": "For evaluating forecasting reliability, head over to the <b>Model Trust</b> tab. This view translates numerical baseline errors (MAPE / MAE footprints) into direct labels like 'High/Medium/Low confidence' so you can gauge production risks safely.",
+            "suggestedPage": "Model Trust"
+        }
+        
+    # 4. Sheets updating, data replacement or overlap issues
+    elif "update" in q or "sheet" in q or "upload" in q or "excel" in q or "csv" in q or "overlap" in q:
+        return {
+            "response": "To incorporate fresh data into the pipeline, switch over to the <b>Update Data</b> view. This space allows you to upload external CSV or Excel logs, automatically vetting dates for overlaps with legacy historical windows before engine retraining.",
+            "suggestedPage": "Update Data"
+        }
+        
+    # 5. Technical features or inner metrics details
+    elif "technical" in q or "feature" in q or "importance" in q or "weekly" in q or "engine" in q:
+        return {
+            "response": "The <b>Technical Details</b> section contains granular metrics for engineers. It shows chronological weekly error lines alongside machine learning feature importances to describe which attributes drive model behaviors.",
+            "suggestedPage": "Technical Details"
+        }
+        
+    # Default fallback response
+    return {
+        "response": "Hello Manager! I can guide you through our system metrics. Try asking questions containing terms like <b>'forecast'</b>, <b>'historical sales'</b>, <b>'model error (MAPE)'</b>, or <b>'updating sheets'</b> to dynamically focus your view context.",
+        "suggestedPage": None
+    }
+
+
+# =====================================================
 # PATH CONFIGURATION & LOAD EXCEL DATASOURCE
 # =====================================================
 
@@ -552,7 +634,7 @@ page = st.sidebar.radio(
 )
 
 # =====================================================
-# PAGE 1: BRANCH FORECAST
+# PAGE 1: BRANCH FORECAST & DATA COPILOT
 # =====================================================
 
 if page == "1. Branch Forecast":
@@ -798,6 +880,64 @@ if page == "1. Branch Forecast":
     with st.expander("View Forecast Table for Decision Making"):
         st.dataframe(style_table(decision_table), use_container_width=True)
 
+    # =====================================================
+    # LOCAL OFFLINE COPILOT NAVIGATION COMPONENT
+    # =====================================================
+    st.markdown("---")
+    st.subheader("👨🏼‍🍳 Panem Operational Analytics Copilot")
+    
+    if "copilot_messages" not in st.session_state:
+        st.session_state["copilot_messages"] = [
+            {"role": "assistant", "content": "Hello Team Panem! I am your dashboard data assistant. I can help you interpret demand forecasts, break down model error flags, or guide you to data update views. What operational metrics can I help you with?"}
+        ]
+    if "active_navigation_hint" not in st.session_state:
+        st.session_state["active_navigation_hint"] = None
+
+    chat_col, guide_col = st.columns([2, 1])
+
+    with chat_col:
+        for msg in st.session_state["copilot_messages"]:
+            if msg["role"] == "user":
+                st.markdown(f'<div class="chat-bubble-user">{html.escape(msg["content"])}</div>', unsafe_allow_html=True)
+            else:
+                # Allow minor internal HTML blocks (like bolded recommendations) from our local dictionary
+                formatted_bot_text = msg["content"].replace("\n", "<br>")
+                st.markdown(f'<div class="chat-bubble-bot">{formatted_bot_text}</div>', unsafe_allow_html=True)
+
+        user_query = st.chat_input("Ask about forecasts, error metrics, or sheets...")
+        
+        if user_query:
+            st.markdown(f'<div class="chat-bubble-user">{html.escape(user_query)}</div>', unsafe_allow_html=True)
+            st.session_state["copilot_messages"].append({"role": "user", "content": user_query})
+
+            # Fetch local evaluation maps completely offline without calling OpenAI
+            local_result = get_local_copilot_response(user_query)
+            
+            st.session_state["active_navigation_hint"] = local_result["suggestedPage"]
+            st.session_state["copilot_messages"].append({"role": "assistant", "content": local_result["response"]})
+            st.rerun()
+
+    with guide_col:
+        st.markdown("<div class='live-navigation-box'>", unsafe_allow_html=True)
+        st.markdown("🗺️ **Dashboard Map & Context**")
+        
+        current_hint = st.session_state["active_navigation_hint"]
+        if current_hint:
+            st.markdown(f"**Recommended Dashboard Tab:**\n`{current_hint}`")
+            st.markdown("Please switch to this page using the navigation sidebar on the left to see the charts.")
+        else:
+            st.markdown("<span style='color: #6b5a45; font-size:13px;'>Ask me how to find specific insights or read metrics!</span>", unsafe_allow_html=True)
+            
+        st.markdown("---")
+        if st.button("Reset Assistant Logs", use_container_width=True):
+            st.session_state["copilot_messages"] = [
+                {"role": "assistant", "content": "Hello Team Panem! 🥐 I am your dashboard data assistant. I can help you interpret demand forecasts, break down model error flags, or guide you to data update views. What operational metrics can I help you with?"}
+            ]
+            st.session_state["active_navigation_hint"] = None
+            st.rerun()
+            
+        st.markdown("</div>", unsafe_allow_html=True)
+
 # =====================================================
 # PAGE 2: HISTORICAL SALES
 # =====================================================
@@ -1016,7 +1156,7 @@ elif page == "3. Model Trust":
     st.subheader("Model Error vs Baselines")
 
     comparison_columns = ["product", "MAPE", "Baseline_MAPE"]
-    if has_recent_baseline:
+    if "Recent_7_Day_MAPE" in trust_table.columns:
         comparison_columns.append("Recent_7_Day_MAPE")
 
     error_comparison = trust_table[comparison_columns].copy()
